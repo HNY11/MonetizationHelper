@@ -1,0 +1,145 @@
+
+import android.content.Context;
+import android.util.Log;
+
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.LoadAdError;
+
+/**
+ * Author Himanshu
+ * Created on  15-October-2020
+ * README:
+ * Step 1: get the instance of this class anywhere from this app
+ * Step 2: set the interstitial id for the single time if you don't want to change it again and set false to {@link #loadOnce}.
+ * Step 3: show the ad with {@link #showAdWithResponse()} it will give you the response - "true" if ad is shown
+ * Step 4: Set the {@link #adsCloseListener} with the {@link #setAdsCloseListener(AdsCloseListener)} and perform your action in this listener
+ */
+public class GoogleInterstitialAdHelper {
+
+    private AdsCloseListener adsCloseListener;
+    public AdsLoadedListener adsLoadedListener;
+    private volatile static GoogleInterstitialAdHelper instance;
+
+    public InterstitialAd mInterstitialAd;
+    private String interstitial_id = "ca-app-pub-3940256099942544/1033173712"; //test
+    public static final String INTERSTITIAL_ID_TEST = "ca-app-pub-3940256099942544/1033173712"; //test
+    private boolean loadOnce = true;
+
+    public static final String TAG = "googleAds";
+
+    private GoogleInterstitialAdHelper() { }
+
+    public static GoogleInterstitialAdHelper getInstance() {
+        if (instance == null) {
+            synchronized (GoogleInterstitialAdHelper.class) {
+                if (instance == null) {
+                    instance = new GoogleInterstitialAdHelper();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /**
+     * if you want to load the ad again with the same id then set loadOnce to false
+     */
+    public void setInterstitialIdAndLoad(Context context, String interstitial_id, boolean loadOnce) {
+        this.interstitial_id = interstitial_id;
+        this.loadOnce = loadOnce;
+        initAndLoad(context);
+    }
+
+    private void initAndLoad(Context context) {
+
+        if (Utility.isPremium()) return;
+
+        if (Utility.isTestLab()) return;
+
+        mInterstitialAd = new InterstitialAd(context);
+        /*if (AppConfig.showTestAds) {
+            mInterstitialAd.setAdUnitId(INTERSTITIAL_ID_TEST);
+        } else {
+            mInterstitialAd.setAdUnitId(interstitial_id);
+        }*/
+
+        mInterstitialAd.setAdUnitId(interstitial_id);
+
+        mInterstitialAd.setAdListener(new AdListener() {
+            @Override
+            public void onAdClosed() {
+                super.onAdClosed();
+                if (adsCloseListener != null) {
+                    adsCloseListener.onAdClosed();
+                }
+                if (!loadOnce) reloadAd();
+            }
+
+            @Override
+            public void onAdLoaded() {
+                super.onAdLoaded();
+                Log.d(TAG, "onAdLoaded: with id: " + interstitial_id);
+                if (adsLoadedListener != null) {
+                    adsLoadedListener.onAdLoaded();
+                }
+            }
+
+            @Override
+            public void onAdFailedToLoad(LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                Log.d(TAG, "onAdFailedToLoad: " + loadAdError.getCode() + ": " + loadAdError.getMessage());
+                if (adsLoadedListener != null) {
+                    adsLoadedListener.onAdFailedToLoad();
+                }
+            }
+        });
+        mInterstitialAd.loadAd(new AdRequest.Builder().build());
+        Log.d(TAG, "START LOADING ADS... with id:" + interstitial_id);
+    }
+
+    public boolean showAdWithResponse() {
+        if (mInterstitialAd != null && mInterstitialAd.isLoaded()) {
+            mInterstitialAd.show();
+            return true;
+        } else {
+            reloadAd();
+            return false;
+        }
+    }
+
+    public void showAd() {
+        if (mInterstitialAd != null && mInterstitialAd.isLoaded()) {
+            mInterstitialAd.show();
+        }
+    }
+
+    public boolean isAdLoaded() {
+        if (mInterstitialAd != null) return mInterstitialAd.isLoaded();
+        else return false;
+    }
+
+    private void reloadAd() {
+        if (mInterstitialAd != null && !mInterstitialAd.isLoaded()) {
+            mInterstitialAd.loadAd(new AdRequest.Builder().build());
+        }
+    }
+
+    public void setAdsCloseListener(AdsCloseListener adsCloseListener) {
+        this.adsCloseListener = adsCloseListener;
+    }
+
+    public void setAdLoadedListener(AdsLoadedListener adsLoadedListener) {
+        this.adsLoadedListener = adsLoadedListener;
+    }
+
+    public interface AdsCloseListener {
+        void onAdClosed();
+    }
+
+    public interface AdsLoadedListener {
+        void onAdLoaded();
+
+        void onAdFailedToLoad();
+    }
+}

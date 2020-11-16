@@ -57,9 +57,7 @@ public class FacebookInterstitialAdHelper {
 
     private void initAndLoad(Context context) {
 
-        if (Utility.isPremium()) return;
-
-        if (Utility.isTestLab()) return;
+        // if (Utility.isPremium()) return;
 
         if (AppConfig.showTestAds) {
             interstitial_id = INTERSTITIAL_ID_TEST + interstitial_id;

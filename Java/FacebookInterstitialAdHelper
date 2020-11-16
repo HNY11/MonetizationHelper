@@ -1,0 +1,182 @@
+import android.content.Context;
+import android.util.Log;
+
+import com.facebook.ads.Ad;
+import com.facebook.ads.AdError;
+import com.facebook.ads.InterstitialAd;
+import com.facebook.ads.InterstitialAdListener;
+
+import filebrowser.filemanager.file.folder.app.utils.AppConfig;
+import filebrowser.filemanager.file.folder.app.utils.Utility;
+
+/**
+ * Author Himanshu Malik
+ * Created on  15-October-2020
+ * README:
+ * Step 1: get the instance of this class anywhere from this app
+ * Step 2: set the interstitial id for the single time if you don't want to change it again and set false to {@link #loadOnce}.
+ * Step 3: show the ad with {@link #showAdWithResponse()} it will give you the response - "true" if ad is shown
+ * Step 4: Set the {@link #adsCloseListener} with the {@link #setAdsCloseListener(AdsCloseListener)} and perform your action in this listener
+ * Optional:- If you want to show the ad after some clicks then first set the counter limit with {@link #setInterstitialCounterLimit(int)} [by default its 2]
+ * and after that show ad with {@link #showAdWithCounter()}
+ */
+public class FacebookInterstitialAdHelper {
+
+    private AdsCloseListener adsCloseListener;
+    public AdsLoadedListener adsLoadedListener;
+    private volatile static FacebookInterstitialAdHelper instance;
+
+    public InterstitialAd mInterstitialAd;
+    private final InterstitialAListener interstitialAdListener = new InterstitialAListener();
+    private String interstitial_id = "IMG_16_9_APP_INSTALL#"; //test
+    public static final String INTERSTITIAL_ID_TEST = "IMG_16_9_APP_INSTALL#"; //test
+    private boolean loadOnce = true;
+    private int interstitialCounterLimit = 1;
+    private int interstitialCounter = 0;
+
+    public static final String TAG = "googleAds_Intro_Splash";
+
+    private FacebookInterstitialAdHelper() { }
+
+    public static FacebookInterstitialAdHelper getInstance() {
+        if (instance == null) {
+            synchronized (FacebookInterstitialAdHelper.class) {
+                if (instance == null) {
+                    instance = new FacebookInterstitialAdHelper();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /**
+     * if you want to load the ad again with the same id then set loadOnce to false
+     */
+    public void setInterstitialIdAndLoad(Context context, String interstitial_id, boolean loadOnce) {
+        this.interstitial_id = interstitial_id;
+        this.loadOnce = loadOnce;
+        initAndLoad(context);
+    }
+
+    private void initAndLoad(Context context) {
+
+        if (Utility.isPremium()) return;
+
+        if (Utility.isTestLab()) return;
+
+        if (AppConfig.showTestAds) {
+            interstitial_id = INTERSTITIAL_ID_TEST + interstitial_id;
+        }
+
+        mInterstitialAd = new InterstitialAd(context, interstitial_id);
+
+
+        mInterstitialAd.loadAd(mInterstitialAd.buildLoadAdConfig().withAdListener(interstitialAdListener).build());
+        Log.d(TAG, "START LOADING FB interstitial ADS...");
+    }
+
+    public void setInterstitialCounterLimit(int limit) {
+        interstitialCounterLimit = limit;
+    }
+
+    public void showAd() {
+        if (mInterstitialAd != null && mInterstitialAd.isAdLoaded()) {
+            mInterstitialAd.show();
+        }else {
+            Log.d(TAG, "FB showAd: not loaded :" + mInterstitialAd.isAdLoaded());
+        }
+    }
+
+    public boolean showAdWithResponse() {
+        if (mInterstitialAd != null && mInterstitialAd.isAdLoaded()) {
+            mInterstitialAd.show();
+            return true;
+        } else {
+            reloadAd();
+            return false;
+        }
+    }
+
+    public boolean showAdWithCounter() {
+        if (interstitialCounter > interstitialCounterLimit && mInterstitialAd != null && mInterstitialAd.isAdLoaded()) {
+            interstitialCounter = 0;
+            mInterstitialAd.show();
+            return true;
+        }else {
+            Log.d(TAG, "FB showAdWithCounter: not loaded :" + mInterstitialAd.isAdLoaded());
+            interstitialCounter++;
+            return false;
+        }
+    }
+
+    public boolean isAdLoaded() {
+        if (mInterstitialAd != null) return mInterstitialAd.isAdLoaded();
+        else return false;
+    }
+
+    private void reloadAd() {
+        if (mInterstitialAd != null && !mInterstitialAd.isAdLoaded()) {
+            mInterstitialAd.loadAd(mInterstitialAd.buildLoadAdConfig().withAdListener(interstitialAdListener).build());
+        }
+    }
+
+    class InterstitialAListener implements InterstitialAdListener {
+
+        @Override
+        public void onInterstitialDisplayed(Ad ad) {
+
+        }
+
+        @Override
+        public void onInterstitialDismissed(Ad ad) {
+            if (adsCloseListener != null) {
+                adsCloseListener.onAdClosed();
+            }
+            if (!loadOnce) reloadAd();
+        }
+
+        @Override
+        public void onError(Ad ad, AdError adError) {
+            Log.d(TAG, "FB onAdFailedToLoad: " + adError.getErrorCode() + ": " + adError.getErrorMessage());
+            if (adsLoadedListener != null) {
+                adsLoadedListener.onAdFailedToLoad();
+            }
+        }
+
+        @Override
+        public void onAdLoaded(Ad ad) {
+            Log.d(TAG, "FB onAdLoaded: with id: " + interstitial_id);
+            if (adsLoadedListener != null) {
+                adsLoadedListener.onAdLoaded();
+            }
+        }
+
+        @Override
+        public void onAdClicked(Ad ad) {
+
+        }
+
+        @Override
+        public void onLoggingImpression(Ad ad) {
+
+        }
+    }
+
+    public void setAdsCloseListener(AdsCloseListener adsCloseListener) {
+        this.adsCloseListener = adsCloseListener;
+    }
+
+    public void setAdLoadedListener(AdsLoadedListener adsLoadedListener) {
+        this.adsLoadedListener = adsLoadedListener;
+    }
+
+    public interface AdsCloseListener {
+        void onAdClosed();
+    }
+
+    public interface AdsLoadedListener {
+        void onAdLoaded();
+
+        void onAdFailedToLoad();
+    }
+}

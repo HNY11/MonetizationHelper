@@ -6,9 +6,6 @@ import com.facebook.ads.AdError;
 import com.facebook.ads.InterstitialAd;
 import com.facebook.ads.InterstitialAdListener;
 
-import filebrowser.filemanager.file.folder.app.utils.AppConfig;
-import filebrowser.filemanager.file.folder.app.utils.Utility;
-
 /**
  * Author Himanshu Malik
  * Created on  15-October-2020
